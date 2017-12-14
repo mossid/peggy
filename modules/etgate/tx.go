@@ -8,7 +8,7 @@ import (
     
     //"github.com/tendermint/iavl" // dev branch
 
-//    "github.com/ethereum/go-ethereum/common"
+    "github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -76,8 +76,8 @@ func (tx DepositTx) ValidateBasic() error {
 
 type WithdrawTx struct {
     To [20]byte
-    Value coin.Coins
-    Token string
+    Value []byte
+    Token common.Address
 }
 
 func (tx WithdrawTx) Wrap() sdk.Tx {
@@ -85,9 +85,6 @@ func (tx WithdrawTx) Wrap() sdk.Tx {
 }
 
 func (tx WithdrawTx) ValidateBasic() error {
-    if !tx.Value.IsValid() {
-        return errInvalidCoins
-    }
     return nil
 }
 

@@ -1,6 +1,7 @@
 package etgate
 
 import (
+    "math/big"
     "strings"
 
     abci "github.com/tendermint/abci/types"
@@ -72,6 +73,8 @@ func (h Handler) DeliverTx(ctx sdk.Context, store state.SimpleDB, tx sdk.Tx, nex
         return h.depositTx(ctx, store, t, next)
     case WithdrawTx:
         return h.withdrawTx(ctx, store, t)
+//    case TransferTx:
+//        return h.transferTx(ctx, store, t, next)
     }
 
     return next.DeliverTx(ctx, store, tx)
@@ -202,7 +205,7 @@ func (h Handler) depositTx(ctx sdk.Context, store state.SimpleDB, tx DepositTx, 
         return res, errLogUnpackingError
     }
 
-    increaseBalance(store, string(deposit.Chain), deposit.Value.Uint64())
+    increaseBalance(store, string(deposit.Chain), deposit.Token, deposit.Value)
 
     outTx := etend.DepositTx{
         To:    deposit.To,
@@ -220,6 +223,25 @@ func (h Handler) depositTx(ctx sdk.Context, store state.SimpleDB, tx DepositTx, 
     _, err = next.DeliverTx(ibcCtx, store, packet.Wrap())
     
     return res, err
+}
+
+func (h Handler) withdrawTx(ctx sdk.Context, store state.SimpleDB, tx WithdrawTx) (res sdk.DeliverResult, err error) {
+    // TODO: check if the origin chain has sufficient value
+    // We cant know where is the tx came from
+
+    var value *big.Int
+    value.SetBytes(tx.Value)
+
+    decreaseBalance(store, string("dummy-value-make-it-origin-chain"), tx.Token, value)
+
+    info := loadInfo(store)
+    info.LastWithdraw++
+
+    saveWithdraw(store, tx.To, value, tx.Token, info.LastWithdraw)
+
+    saveInfo(store, info)
+
+    return res, nil
 }
 
 func (h Handler) InitState(l log.Logger, store state.SimpleDB, module, key, value string, cb sdk.InitStater) (log string, err error) {

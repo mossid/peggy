@@ -1,6 +1,7 @@
 package etgate
 
 import (
+    "math/big"
     "bytes"
 
     sdk "github.com/cosmos/cosmos-sdk"
@@ -15,9 +16,10 @@ var (
     InfoKey       = []byte{0x01} // Info
     ValidatorsKey = []byte{0x02} // []sdk.Actor
 
-    BufferPrefix  = []byte{0x03} // uint => []SignedHeader
-    FinalPrefix   = []byte{0x04} // uint => Header
-    BalancePrefix = []byte{0x05} // string => uint
+    BufferPrefix   = []byte{0x03} // uint => []SignedHeader
+    FinalPrefix    = []byte{0x04} // uint => Header
+    BalancePrefix  = []byte{0x05} // ChainTokenPair => uint
+    WithdrawPrefix = []byte{0x06} // uint => []byte
 )
 
 // this repo is based on master branch of go-wrie\
@@ -63,8 +65,12 @@ func GetFinalKey(height uint64) []byte {
     return append(FinalPrefix, marshal(height)...)
 }
 
-func GetBalanceKey(chainid string) []byte {
-    return append(BalancePrefix, chainid...)
+func GetBalanceKey(chainid string, token common.Address) []byte {
+    return append(BalancePrefix, marshal(ChainTokenPair{chainid, token})...)
+}
+
+func GetWithdrawKey(seq uint64) []byte {
+    return append(WithdrawPrefix, marshal(seq)...)
 }
 
 // ------------i-------------------
@@ -127,22 +133,37 @@ func loadSigners(store state.SimpleDB, height uint64, hash common.Hash) []sdk.Ac
     return nil
 }
 
-func saveBalance(store state.SimpleDB, chainid string, balance uint64) {
-    store.Set(GetBalanceKey(chainid), marshal(balance))
+func saveBalance(store state.SimpleDB, chainid string, token common.Address, balance *big.Int) {
+    store.Set(GetBalanceKey(chainid, token), marshal(balance))
 }
 
-func loadBalance(store state.SimpleDB, chainid string) (res uint64) {
-    b := store.Get(GetBalanceKey(chainid))
+func loadBalance(store state.SimpleDB, chainid string, token common.Address) (res *big.Int) {
+    b := store.Get(GetBalanceKey(chainid, token))
     if b == nil {
-        return 0
+        return new(big.Int).SetUint64(0)
     }
-    return unmarshal(b).(uint64)
+    return new(big.Int).SetBytes(unmarshal(b).([]byte))
 }
 
-func increaseBalance(store state.SimpleDB, chainid string, diff uint64) {
-    saveBalance(store, chainid, loadBalance(store, chainid) + diff)
+func saveWithdraw(store state.SimpleDB, to common.Address, value *big.Int, token common.Address, seq uint64) {
+    data := [][]byte {
+        to.Bytes(),
+        value.Bytes(),
+        token.Bytes(),
+    }
+    
+    var encoded []byte
+    for _, d := range data {
+        encoded = append(encoded, d...)
+    }
+
+    store.Set(GetWithdrawKey(seq), encoded)
 }
 
-func decreaseBalance(store state.SimpleDB, chainid string, diff uint64) {
-    saveBalance(store, chainid, loadBalance(store, chainid) - diff)
+func increaseBalance(store state.SimpleDB, chainid string, token common.Address, diff *big.Int) {
+    saveBalance(store, chainid, token, new(big.Int).Add(loadBalance(store, chainid, token), diff))
+}
+
+func decreaseBalance(store state.SimpleDB, chainid string, token common.Address, diff *big.Int) {
+    saveBalance(store, chainid, token, new(big.Int).Sub(loadBalance(store, chainid, token), diff))
 }

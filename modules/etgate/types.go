@@ -11,6 +11,12 @@ import (
 
 type Info struct {
     LastFinalized uint64
+    LastWithdraw uint64
+}
+
+type ChainTokenPair struct {
+    ChainID string
+    Token common.Address
 }
 
 type Header struct {
