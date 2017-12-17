@@ -4,10 +4,8 @@ import (
     "fmt"
 
     abci "github.com/tendermint/abci/types"
-    "github.com/tendermint/basecoin/types"
     "github.com/tendermint/tendermint/rpc/client"
     "github.com/tendermint/go-wire"
-    basecmd "github.com/tendermint/basecoin/cmd/basecoin/commands"
     tmtypes "github.com/tendermint/tendermint/types"
     
     "../plugins/etgate"

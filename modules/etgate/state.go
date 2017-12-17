@@ -13,13 +13,14 @@ import (
 )
 
 var (
-    InfoKey       = []byte{0x01} // Info
-    ValidatorsKey = []byte{0x02} // []sdk.Actor
+    LastHeaderKey  = []byte{0x01} // uint64
+    ValidatorsKey  = []byte{0x02} // []sdk.Actor
 
-    BufferPrefix   = []byte{0x03} // uint => []SignedHeader
-    FinalPrefix    = []byte{0x04} // uint => Header
-    BalancePrefix  = []byte{0x05} // ChainTokenPair => uint
-    WithdrawPrefix = []byte{0x06} // uint => []byte
+    InfoPrefix     = []byte{0x03} // string => Info
+    BufferPrefix   = []byte{0x04} // uint => []SignedHeader
+    FinalPrefix    = []byte{0x05} // uint => Header
+    BalancePrefix  = []byte{0x06} // ChainTokenPair => uint
+    WithdrawPrefix = []byte{0x07} // uint => []byte
 )
 
 // this repo is based on master branch of go-wrie\
@@ -57,6 +58,10 @@ func unmarshal(d []byte) interface{} {
     return ptr
 }
 
+func GetInfoKey(chainid string) []byte {
+    return append(InfoPrefix, []byte(chainid)...)
+}
+
 func GetBufferKey(height uint64) []byte { 
     return append(BufferPrefix, marshal(height)...)
 }
@@ -75,16 +80,24 @@ func GetWithdrawKey(seq uint64) []byte {
 
 // ------------i-------------------
 
-func loadInfo(store state.SimpleDB) (res Info) {
-    b := store.Get(InfoKey)
+func loadLastHeader(store state.SimpleDB) (res uint64) {
+    b := store.Get(LastHeaderKey)
+    if b == nil {
+        return 0 // change it to (pseudo) Genesis header number
+    }
+    return unmarshal(b).(uint64)
+}
+
+func loadInfo(store state.SimpleDB, chainid string) (res Info) {
+    b := store.Get(GetInfoKey(chainid))
     if b == nil {
         panic("Info not found")
     }
     return unmarshal(b).(Info)
 }
 
-func saveInfo(store state.SimpleDB, info Info) {
-    store.Set(InfoKey, marshal(info))
+func saveInfo(store state.SimpleDB, chainid string, info Info) {
+    store.Set(GetInfoKey(chainid), marshal(info))
 }
 
 func loadSignedHeaders(store state.SimpleDB, height uint64) (res []SignedHeader) {

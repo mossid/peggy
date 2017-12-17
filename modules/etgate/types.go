@@ -10,7 +10,7 @@ import (
 )
 
 type Info struct {
-    LastFinalized uint64
+    LastDeposit  uint64
     LastWithdraw uint64
 }
 

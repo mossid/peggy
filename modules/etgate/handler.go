@@ -86,8 +86,8 @@ func (h Handler) updateTx(ctx sdk.Context, store state.SimpleDB, tx UpdateTx) (r
         return res, err
     }
 
-    info := loadInfo(store)
-    if header.Number < info.LastFinalized || header.Number > info.LastFinalized + Delay + Pending {
+    last := loadLastHeader(store)
+    if header.Number < last || header.Number > last + Delay + Pending {
         return res, errHeaderOutOfVisibleRange
     }
 
@@ -132,9 +132,9 @@ func (h Handler) updateTx(ctx sdk.Context, store state.SimpleDB, tx UpdateTx) (r
 }
 
 func (h Handler) finalizeTx(ctx sdk.Context, store state.SimpleDB, tx FinalizeTx) (res sdk.DeliverResult, err error) {
-    info := loadInfo(store)
+    last := loadLastHeader(store)
 
-    if info.LastFinalized != tx.Witness.Number - Delay - 1 {
+    if last != tx.Witness.Number - Delay - 1 {
         return res, errNoncontinuousFinalization
     }
     
@@ -166,17 +166,16 @@ func (h Handler) finalizeTx(ctx sdk.Context, store state.SimpleDB, tx FinalizeTx
         return res, err
     }
 
-    parent, exists := loadFinalized(store, info.LastFinalized)
+    parent, exists := loadFinalized(store, last)
     if !exists {
-        return res, ErrHeaderNotFound(info.LastFinalized) // must not be happend
+        return res, ErrHeaderNotFound(last) // must not be happend
     }
 
     if ancestor.ParentHash != parent.Hash {
         return res, errConflictingChain
     }
 
-    info.LastFinalized += 1;
-    saveInfo(store, info)
+    saveLastHeader(store, last+1)
 
     saveFinalized(store, ancestor.Number, ancestor)
 
@@ -205,6 +204,12 @@ func (h Handler) depositTx(ctx sdk.Context, store state.SimpleDB, tx DepositTx, 
         return res, errLogUnpackingError
     }
 
+    info := loadInfo(store, string("dummy-value-make-it-origin-chain"))
+    if info.LastDeposit+1 != tx.Sequence {
+        return 
+    }
+    info.LastDeposit++
+
     increaseBalance(store, string(deposit.Chain), deposit.Token, deposit.Value)
 
     outTx := etend.DepositTx{
@@ -221,7 +226,9 @@ func (h Handler) depositTx(ctx sdk.Context, store state.SimpleDB, tx DepositTx, 
 
     ibcCtx := ctx.WithPermissions(ibc.AllowIBC(NameETGate))
     _, err = next.DeliverTx(ibcCtx, store, packet.Wrap())
-    
+
+    saveInfo(store, string("dummy-value-make-it-origikn-chain"), info)
+
     return res, err
 }
 
@@ -229,17 +236,20 @@ func (h Handler) withdrawTx(ctx sdk.Context, store state.SimpleDB, tx WithdrawTx
     // TODO: check if the origin chain has sufficient value
     // We cant know where is the tx came from
 
+    info := loadInfo(store, string("dummy-value-make-it-origin-chain"))
+    if info.LastWithdraw+1 != tx.Sequence {
+        return res, errInvalidWithdrawSequence
+    }
+    info.LastWithdraw++
+
     var value *big.Int
     value.SetBytes(tx.Value)
 
     decreaseBalance(store, string("dummy-value-make-it-origin-chain"), tx.Token, value)
 
-    info := loadInfo(store)
-    info.LastWithdraw++
-
     saveWithdraw(store, tx.To, value, tx.Token, info.LastWithdraw)
 
-    saveInfo(store, info)
+    saveInfo(store, string("dummy-value-make-it-origin-chain"), info)
 
     return res, nil
 }

@@ -7,10 +7,11 @@ import (
 
     "github.com/tendermint/tmlibs/cli"
 
-    basecmd "github.com/tendermint/basecoin/cmd/basecoin/commands"
-    "github.com/tendermint/basecoin/types"
+    scmd "github.com/cosmos/cosmos-sdk/server/commands"
+//    "github.com/tendermint/basecoin/types"
 
-    "../../plugins/etgate"
+
+    "../../modules/etgate"
     "./commands"
 )
 
@@ -21,12 +22,12 @@ func main() {
     }
 
     RootCmd.AddCommand(
-        commands.InitCmd,
-        basecmd.StartCmd,
-        basecmd.RelayCmd,
+        scmd.InitCmd,
+        scmd.StartCmd,
+        scmd.RelayCmd,
         GateCmd,
-        basecmd.UnsafeResetAllCmd,
-        basecmd.VersionCmd,
+        scmd.UnsafeResetAllCmd,
+        scmd.VersionCmd,
     )
     
     basecmd.RegisterStartPlugin("ETGATE", func() types.Plugin { return etgate.New() })
