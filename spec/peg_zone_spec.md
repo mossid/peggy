@@ -234,7 +234,7 @@ Unlocks Ethereum tokens according to the information from the pegzone. Called by
 * transfer tokens to `to`
 * hash value for `ecrecover` is calculated as:
 ```
-byte(1) + to.Bytes() + value.PutUint64() + chain.length.PutUint256() + chain
+byte(1) + to.Bytes() + value.PutUint64() + token.Bytes() + chain.length.PutUint256() + chain
 ```
 #### mint(address to, uint64 value, bytes token, bytes chain, uint16[] idxs, uint8[] v, bytes32[] r, bytes32[] s)
 
@@ -253,10 +253,14 @@ Burns credit for atoms/photons and loggs an event. Called by the users.
 
 * `event Burn(bytes to, uint64 value, bytes token, bytes chain, uint64 nonce)` is logged, seen by the relayers
 
-#### register(string name, address token, uint16[] idxs, uint8[] v, bytes32[] r, bytes32[] s)
+#### register(bytes name, address token, uint16[] idxs, uint8[] v, bytes32[] r, bytes32[] s)
 
 Registers new Cosmos token name with its CosmosERC20 address. Called by the relayers.
 
 * deploys new CosmosERC20 contract and stores it in a mapping
+* has hvalue for `ecrecover` is calculated as:
+```
+byte(3) + name.length.PutUint256() + name + token.Bytes()
+```
 
 ## Relayer Process
